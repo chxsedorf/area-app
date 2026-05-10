@@ -22,7 +22,6 @@ export default function ProfilePage() {
     <main className="min-h-screen bg-[#f7f8fa] text-[#001B2A]">
       <div className="mx-auto flex min-h-screen max-w-md flex-col bg-white shadow-xl">
         <section className="flex flex-1 flex-col px-7 pb-6 pt-10">
-          {/* Header */}
           <div>
             <p className="text-xs font-semibold tracking-[0.35em] text-[#6b7a88]">
               EXPLORER DATA
@@ -32,7 +31,6 @@ export default function ProfilePage() {
             </h1>
           </div>
 
-          {/* Profile Card */}
           <div className="mt-8 rounded-[2rem] bg-[#001B2A] p-6 text-white shadow-xl">
             <div className="flex items-center gap-4">
               <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-white text-2xl font-black text-[#001B2A]">
@@ -71,35 +69,33 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Rule Card */}
           <div className="mt-6 rounded-[2rem] border border-[#e6edf3] bg-white p-5 shadow-sm">
             <p className="text-sm font-black">AREA Rule</p>
 
             <div className="mt-4 space-y-3">
               <div className="rounded-2xl bg-[#f3f6f8] p-4">
-                <p className="text-sm font-black">徒歩・ランニング</p>
+                <p className="text-sm font-black">0km/h</p>
                 <p className="mt-1 text-xs font-bold leading-5 text-[#6b7a88]">
-                  1〜18km/h：周囲100mのAREAを解放
+                  停止中はAREAは解放されません。
                 </p>
               </div>
 
               <div className="rounded-2xl bg-[#f3f6f8] p-4">
-                <p className="text-sm font-black">低速通過</p>
+                <p className="text-sm font-black">0km/h超〜20km/h未満</p>
                 <p className="mt-1 text-xs font-bold leading-5 text-[#6b7a88]">
-                  18〜20km/h：通過したマスのみ解放
+                  移動中として判定され、AREAのマスが解放されます。
                 </p>
               </div>
 
               <div className="rounded-2xl bg-[#f3f6f8] p-4">
-                <p className="text-sm font-black">高速移動</p>
+                <p className="text-sm font-black">20km/h以上</p>
                 <p className="mt-1 text-xs font-bold leading-5 text-[#6b7a88]">
-                  20km/h超：AREAは解放されません
+                  高速移動として判定され、AREAは解放されません。
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Reset */}
           <div className="mt-6 rounded-[2rem] border border-red-100 bg-red-50 p-5">
             <p className="text-sm font-black text-red-950">開発用メニュー</p>
             <p className="mt-2 text-xs font-bold leading-5 text-red-900/70">

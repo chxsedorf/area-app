@@ -1,4 +1,4 @@
-export type MoveStatus = "stopped" | "human" | "slow_pass" | "fast" | "unknown";
+export type MoveStatus = "stopped" | "moving" | "fast" | "unknown";
 
 export type AreaRule = {
   status: MoveStatus;
@@ -11,33 +11,20 @@ export type AreaRule = {
 };
 
 export function judgeMoveStatus(speedKmh: number): MoveStatus {
-  if (speedKmh < 1) return "stopped";
-  if (speedKmh <= 18) return "human";
-  if (speedKmh <= 20) return "slow_pass";
+  if (speedKmh <= 0) return "stopped";
+  if (speedKmh < 20) return "moving";
   return "fast";
 }
 
 export function getAreaRule(status: MoveStatus): AreaRule {
-  if (status === "human") {
+  if (status === "moving") {
     return {
       status,
-      label: "徒歩・ランニング",
-      openRangeLabel: "周囲100m解放",
+      label: "移動中",
+      openRangeLabel: "AREA解放中",
       revealRadiusMeters: 100,
       gridRevealRange: 2,
       areaGainKm2: 0.006,
-      canReveal: true,
-    };
-  }
-
-  if (status === "slow_pass") {
-    return {
-      status,
-      label: "低速通過",
-      openRangeLabel: "通過マスのみ解放",
-      revealRadiusMeters: 25,
-      gridRevealRange: 0,
-      areaGainKm2: 0.001,
       canReveal: true,
     };
   }

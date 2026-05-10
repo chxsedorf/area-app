@@ -158,6 +158,7 @@ function loadRevealedCells() {
 
 function saveRevealedCells(cells: Set<string>) {
   if (typeof window === "undefined") return;
+
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(cells)));
 }
 
@@ -188,6 +189,7 @@ export function AreaProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!hasLoaded) return;
+
     saveRevealedCells(revealedCells);
   }, [revealedCells, hasLoaded]);
 
@@ -214,6 +216,7 @@ export function AreaProvider({ children }: { children: ReactNode }) {
 
   const resetArea = useCallback(() => {
     const resetCells = new Set(initialRevealedCells);
+
     setRevealedCells(resetCells);
     saveRevealedCells(resetCells);
 
@@ -281,7 +284,7 @@ export function AreaProvider({ children }: { children: ReactNode }) {
           setDistance((prevValue) => Number((prevValue + movedKm).toFixed(3)));
 
           if (rule.canReveal) {
-            const revealAmount = status === "human" ? 3 : 1;
+            const revealAmount = 3;
             const addedCount = revealCells(revealAmount);
 
             if (addedCount > 0) {
@@ -306,9 +309,9 @@ export function AreaProvider({ children }: { children: ReactNode }) {
         }
 
         if (rule.canReveal) {
-          setMessage("20km/h以下で通過中。AREAのマスを解放しています。");
+          setMessage("20km/h未満で移動中。AREAのマスを解放しています。");
         } else {
-          setMessage("20km/hを超えているため、AREAは解放されません。");
+          setMessage("0km/h、または20km/h以上のため、AREAは解放されません。");
         }
       },
       (error) => {
