@@ -41,7 +41,19 @@ type AreaContextValue = {
   revealedCells: Set<string>;
   visibleCells: VisibleGridCell[];
   revealedCount: number;
+
+  /**
+   * Quest / Profile 互換用。
+   * 現段階では「現在表示中の9×9グリッドの総マス数」として扱う。
+   */
+  totalCells: number;
+
+  /**
+   * Map画面用。
+   * 現在表示中の9×9グリッドの総マス数。
+   */
   totalVisibleCells: number;
+
   openedRate: string;
   resetArea: () => void;
 
@@ -179,28 +191,25 @@ export function AreaProvider({ children }: { children: ReactNode }) {
     });
   }, [distance, area, newAreas, hasLoaded]);
 
-  const revealCellsByPosition = useCallback(
-    (grid: GridPoint) => {
-      const revealIds = getRevealGridIds(grid);
-      let addedCount = 0;
+  const revealCellsByPosition = useCallback((grid: GridPoint) => {
+    const revealIds = getRevealGridIds(grid);
+    let addedCount = 0;
 
-      setRevealedCells((prevCells) => {
-        const nextCells = new Set(prevCells);
+    setRevealedCells((prevCells) => {
+      const nextCells = new Set(prevCells);
 
-        for (const id of revealIds) {
-          if (!nextCells.has(id)) {
-            nextCells.add(id);
-            addedCount += 1;
-          }
+      for (const id of revealIds) {
+        if (!nextCells.has(id)) {
+          nextCells.add(id);
+          addedCount += 1;
         }
+      }
 
-        return nextCells;
-      });
+      return nextCells;
+    });
 
-      return addedCount;
-    },
-    []
-  );
+    return addedCount;
+  }, []);
 
   const resetArea = useCallback(() => {
     const emptyCells = new Set<string>();
@@ -355,13 +364,23 @@ export function AreaProvider({ children }: { children: ReactNode }) {
     });
 
     const totalVisibleCells = visibleCells.length;
-    const visibleRevealedCount = visibleCells.filter((cell) => cell.isRevealed).length;
-    const openedRate = ((visibleRevealedCount / totalVisibleCells) * 100).toFixed(1);
+    const visibleRevealedCount = visibleCells.filter(
+      (cell) => cell.isRevealed
+    ).length;
+
+    const openedRate = (
+      (visibleRevealedCount / totalVisibleCells) *
+      100
+    ).toFixed(1);
 
     return {
       revealedCells,
       visibleCells,
       revealedCount: revealedCells.size,
+
+      // Quest / Profile 互換用
+      totalCells: totalVisibleCells,
+
       totalVisibleCells,
       openedRate,
       resetArea,
