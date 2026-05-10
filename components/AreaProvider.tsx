@@ -15,7 +15,6 @@ import { getAreaRule, judgeMoveStatus, type MoveStatus } from "@/lib/areaRules";
 import {
   buildVisibleGridCells,
   getRevealGridIds,
-  gridPointToId,
   positionToGridPoint,
   type GridPoint,
   type VisibleGridCell,
@@ -229,6 +228,8 @@ export function AreaProvider({ children }: { children: ReactNode }) {
       area: 0,
       newAreas: 0,
     });
+
+    previousPositionRef.current = null;
   }, []);
 
   useEffect(() => {
@@ -250,28 +251,34 @@ export function AreaProvider({ children }: { children: ReactNode }) {
         };
 
         const grid = positionToGridPoint(current.latitude, current.longitude);
-        const gridId = gridPointToId(grid);
 
         setPosition(current);
         setCurrentGrid(grid);
 
         const previous = previousPositionRef.current;
 
+        /**
+         * 初回現在地取得時：
+         * 止まっていても、まず現在地周辺100mを解放する。
+         * これにより、アプリを開いた瞬間に自分の周辺だけ地図が見える。
+         */
         if (!previous) {
-  previousPositionRef.current = current;
+          previousPositionRef.current = current;
 
-  const addedCount = revealCellsByPosition(grid);
+          const addedCount = revealCellsByPosition(grid);
 
-  if (addedCount > 0) {
-    setNewAreas((prevValue) => prevValue + addedCount);
-    setArea((prevValue) =>
-      Number((prevValue + 0.006 * addedCount).toFixed(3))
-    );
-  }
+          if (addedCount > 0) {
+            setNewAreas((prevValue) => prevValue + addedCount);
+            setArea((prevValue) =>
+              Number((prevValue + 0.006 * addedCount).toFixed(3))
+            );
+          }
 
-  setMessage("現在地周辺のAREAを解放しました。移動するとさらに広がります。");
-  return;
-}
+          setMessage(
+            "現在地周辺100mのAREAを解放しました。移動するとさらに広がります。"
+          );
+          return;
+        }
 
         const movedKm = getDistanceKm(
           previous.latitude,
@@ -320,7 +327,7 @@ export function AreaProvider({ children }: { children: ReactNode }) {
         }
 
         if (!isRealMove) {
-          setMessage("移動が小さいため、マスはまだ解放されていません。");
+          setMessage("移動が小さいため、マスはまだ追加解放されていません。");
           return;
         }
 
