@@ -17,8 +17,11 @@ function getMapStyleUrl() {
     return "https://demotiles.maplibre.org/style.json";
   }
 
-  // 衛星写真ベースのリアル地図
+  // Google Mapの航空写真寄りにしたい場合
   return `https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`;
+
+  // 通常のシンプルな地図にしたい場合は、上をコメントアウトして下を使う
+  // return `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_KEY}`;
 }
 
 function cellIdToGridPoint(id: string) {
@@ -36,7 +39,7 @@ function gridPointToLngLat(x: number, y: number, latitudeHint: number) {
   return { lng, lat };
 }
 
-function buildCellPolygon(id: string, latitudeHint: number) {
+function buildCellRing(id: string, latitudeHint: number) {
   const { x, y } = cellIdToGridPoint(id);
 
   const bottomLeft = gridPointToLngLat(x, y, latitudeHint);
@@ -44,20 +47,22 @@ function buildCellPolygon(id: string, latitudeHint: number) {
   const topRight = gridPointToLngLat(x + 1, y + 1, latitudeHint);
   const topLeft = gridPointToLngLat(x, y + 1, latitudeHint);
 
+  return [
+    [bottomLeft.lng, bottomLeft.lat],
+    [bottomRight.lng, bottomRight.lat],
+    [topRight.lng, topRight.lat],
+    [topLeft.lng, topLeft.lat],
+    [bottomLeft.lng, bottomLeft.lat],
+  ];
+}
+
+function buildCellPolygon(id: string, latitudeHint: number) {
   return {
     type: "Feature",
     properties: {},
     geometry: {
       type: "Polygon",
-      coordinates: [
-        [
-          [bottomLeft.lng, bottomLeft.lat],
-          [bottomRight.lng, bottomRight.lat],
-          [topRight.lng, topRight.lat],
-          [topLeft.lng, topLeft.lat],
-          [bottomLeft.lng, bottomLeft.lat],
-        ],
-      ],
+      coordinates: [buildCellRing(id, latitudeHint)],
     },
   };
 }
@@ -66,6 +71,44 @@ function buildRevealedGeoJson(cellIds: string[], latitudeHint: number) {
   return {
     type: "FeatureCollection",
     features: cellIds.map((id) => buildCellPolygon(id, latitudeHint)),
+  };
+}
+
+/**
+ * 未開放エリアを暗く隠すためのマスク。
+ * 世界全体を覆う大きなPolygonを作り、
+ * 開放済みセルを「穴」としてくり抜く。
+ */
+function buildFogMaskGeoJson(cellIds: string[], latitudeHint: number) {
+  const worldOuterRing = [
+    [-180, -85],
+    [180, -85],
+    [180, 85],
+    [-180, 85],
+    [-180, -85],
+  ];
+
+  const holes = cellIds.map((id) => {
+    const ring = buildCellRing(id, latitudeHint);
+
+    /**
+     * GeoJSONの穴は外周と逆向きにしておくと安定しやすい。
+     */
+    return [...ring].reverse();
+  });
+
+  return {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        properties: {},
+        geometry: {
+          type: "Polygon",
+          coordinates: [worldOuterRing, ...holes],
+        },
+      },
+    ],
   };
 }
 
@@ -100,21 +143,52 @@ export default function AreaMap() {
     );
 
     map.on("load", () => {
+      const cellIds = Array.from(revealedCells);
+      const latitudeHint = position?.latitude ?? initialLat;
+
+      /**
+       * 開放済みセル
+       */
       map.addSource("revealed-cells", {
         type: "geojson",
         data: buildRevealedGeoJson(
-          Array.from(revealedCells),
-          position?.latitude ?? initialLat
+          cellIds,
+          latitudeHint
         ) as GeoJSON.FeatureCollection,
       });
 
+      /**
+       * 未開放エリアの暗いマスク
+       */
+      map.addSource("fog-mask", {
+        type: "geojson",
+        data: buildFogMaskGeoJson(
+          cellIds,
+          latitudeHint
+        ) as GeoJSON.FeatureCollection,
+      });
+
+      map.addLayer({
+        id: "fog-mask-fill",
+        type: "fill",
+        source: "fog-mask",
+        paint: {
+          "fill-color": "#020912",
+          "fill-opacity": 0.88,
+        },
+      });
+
+      /**
+       * 開放済みエリアの薄い青フィルター
+       * 地図は見えるが、AREAとして開放済みだと分かるようにする。
+       */
       map.addLayer({
         id: "revealed-cells-fill",
         type: "fill",
         source: "revealed-cells",
         paint: {
           "fill-color": "#00AEEF",
-          "fill-opacity": 0.34,
+          "fill-opacity": 0.18,
         },
       });
 
@@ -124,11 +198,14 @@ export default function AreaMap() {
         source: "revealed-cells",
         paint: {
           "line-color": "#7dd3fc",
-          "line-width": 1.6,
-          "line-opacity": 0.95,
+          "line-width": 1.4,
+          "line-opacity": 0.9,
         },
       });
 
+      /**
+       * 現在地
+       */
       map.addSource("current-position", {
         type: "geojson",
         data: {
@@ -193,18 +270,32 @@ export default function AreaMap() {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
 
-    const source = map.getSource("revealed-cells") as
+    const cellIds = Array.from(revealedCells);
+    const latitudeHint = position?.latitude ?? 33.957;
+
+    const revealedSource = map.getSource("revealed-cells") as
       | GeoJSONSource
       | undefined;
 
-    if (!source) return;
+    if (revealedSource) {
+      revealedSource.setData(
+        buildRevealedGeoJson(
+          cellIds,
+          latitudeHint
+        ) as GeoJSON.FeatureCollection
+      );
+    }
 
-    source.setData(
-      buildRevealedGeoJson(
-        Array.from(revealedCells),
-        position?.latitude ?? 33.957
-      ) as GeoJSON.FeatureCollection
-    );
+    const fogSource = map.getSource("fog-mask") as GeoJSONSource | undefined;
+
+    if (fogSource) {
+      fogSource.setData(
+        buildFogMaskGeoJson(
+          cellIds,
+          latitudeHint
+        ) as GeoJSON.FeatureCollection
+      );
+    }
   }, [revealedCells, position]);
 
   return (
@@ -223,7 +314,7 @@ export default function AreaMap() {
       <div className="pointer-events-none absolute left-4 top-4 rounded-2xl bg-[#001B2A]/80 px-4 py-3 text-white backdrop-blur">
         <p className="text-[10px] font-bold text-white/45">MAP</p>
         <p className="text-sm font-black">
-          {isTracking ? "Live tracking" : "Waiting"}
+          {isTracking ? "Fog of War" : "Waiting"}
         </p>
       </div>
     </div>
