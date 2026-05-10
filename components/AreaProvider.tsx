@@ -12,13 +12,14 @@ import {
 } from "react";
 import { getDistanceKm } from "@/lib/distance";
 import { getAreaRule, judgeMoveStatus, type MoveStatus } from "@/lib/areaRules";
-
-export type AreaCell = {
-  id: string;
-  row: number;
-  col: number;
-  isCurrentPosition: boolean;
-};
+import {
+  buildVisibleGridCells,
+  getRevealGridIds,
+  gridPointToId,
+  positionToGridPoint,
+  type GridPoint,
+  type VisibleGridCell,
+} from "@/lib/grid";
 
 type PositionData = {
   latitude: number;
@@ -27,96 +28,20 @@ type PositionData = {
   timestamp: number;
 };
 
-const PREVIEW_ROWS = 9;
-const PREVIEW_COLS = 9;
-const STORAGE_KEY = "area_revealed_cells";
+const STORAGE_KEY = "area_revealed_cells_v2";
+const DAILY_STORAGE_KEY = "area_daily_stats_v2";
 
-const initialRevealedCells = new Set<string>([
-  "2-3",
-  "2-4",
-  "2-5",
-  "3-3",
-  "3-4",
-  "3-5",
-  "4-3",
-  "4-4",
-  "4-5",
-]);
-
-const revealOrder = [
-  "5-3",
-  "5-4",
-  "5-5",
-  "6-4",
-  "6-5",
-  "6-6",
-  "4-6",
-  "5-6",
-  "3-6",
-  "2-6",
-  "1-5",
-  "1-4",
-  "1-3",
-  "3-2",
-  "4-2",
-  "5-2",
-  "6-2",
-  "7-3",
-  "7-4",
-  "7-5",
-  "7-6",
-  "6-7",
-  "5-7",
-  "4-7",
-  "3-7",
-  "2-7",
-  "1-7",
-  "0-6",
-  "0-5",
-  "0-4",
-  "0-3",
-  "0-2",
-  "1-2",
-  "2-2",
-  "3-1",
-  "4-1",
-  "5-1",
-  "6-1",
-  "7-1",
-  "8-2",
-  "8-3",
-  "8-4",
-  "8-5",
-  "8-6",
-  "8-7",
-  "7-7",
-  "6-8",
-  "5-8",
-  "4-8",
-  "3-8",
-  "2-8",
-];
-
-export const areaCells: AreaCell[] = Array.from(
-  { length: PREVIEW_ROWS * PREVIEW_COLS },
-  (_, index) => {
-    const row = Math.floor(index / PREVIEW_COLS);
-    const col = index % PREVIEW_COLS;
-    const id = `${row}-${col}`;
-
-    return {
-      id,
-      row,
-      col,
-      isCurrentPosition: row === 4 && col === 4,
-    };
-  }
-);
+type DailyStats = {
+  distance: number;
+  area: number;
+  newAreas: number;
+};
 
 type AreaContextValue = {
   revealedCells: Set<string>;
+  visibleCells: VisibleGridCell[];
   revealedCount: number;
-  totalCells: number;
+  totalVisibleCells: number;
   openedRate: string;
   resetArea: () => void;
 
@@ -127,6 +52,7 @@ type AreaContextValue = {
   speedKmh: number;
   moveStatus: MoveStatus;
   position: PositionData | null;
+  currentGrid: GridPoint | null;
   message: string;
 };
 
@@ -134,25 +60,25 @@ const AreaContext = createContext<AreaContextValue | null>(null);
 
 function loadRevealedCells() {
   if (typeof window === "undefined") {
-    return new Set(initialRevealedCells);
+    return new Set<string>();
   }
 
   try {
     const saved = window.localStorage.getItem(STORAGE_KEY);
 
     if (!saved) {
-      return new Set(initialRevealedCells);
+      return new Set<string>();
     }
 
     const parsed = JSON.parse(saved);
 
     if (!Array.isArray(parsed)) {
-      return new Set(initialRevealedCells);
+      return new Set<string>();
     }
 
     return new Set<string>(parsed);
   } catch {
-    return new Set(initialRevealedCells);
+    return new Set<string>();
   }
 }
 
@@ -162,12 +88,54 @@ function saveRevealedCells(cells: Set<string>) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(cells)));
 }
 
+function loadDailyStats(): DailyStats {
+  if (typeof window === "undefined") {
+    return {
+      distance: 0,
+      area: 0,
+      newAreas: 0,
+    };
+  }
+
+  try {
+    const saved = window.localStorage.getItem(DAILY_STORAGE_KEY);
+
+    if (!saved) {
+      return {
+        distance: 0,
+        area: 0,
+        newAreas: 0,
+      };
+    }
+
+    const parsed = JSON.parse(saved);
+
+    return {
+      distance: Number(parsed.distance ?? 0),
+      area: Number(parsed.area ?? 0),
+      newAreas: Number(parsed.newAreas ?? 0),
+    };
+  } catch {
+    return {
+      distance: 0,
+      area: 0,
+      newAreas: 0,
+    };
+  }
+}
+
+function saveDailyStats(stats: DailyStats) {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.setItem(DAILY_STORAGE_KEY, JSON.stringify(stats));
+}
+
 export function AreaProvider({ children }: { children: ReactNode }) {
   const watchIdRef = useRef<number | null>(null);
   const previousPositionRef = useRef<PositionData | null>(null);
 
   const [revealedCells, setRevealedCells] = useState<Set<string>>(
-    () => new Set(initialRevealedCells)
+    () => new Set<string>()
   );
 
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -180,10 +148,18 @@ export function AreaProvider({ children }: { children: ReactNode }) {
   const [speedKmh, setSpeedKmh] = useState(0);
   const [moveStatus, setMoveStatus] = useState<MoveStatus>("unknown");
   const [position, setPosition] = useState<PositionData | null>(null);
+  const [currentGrid, setCurrentGrid] = useState<GridPoint | null>(null);
   const [message, setMessage] = useState("位置情報を準備しています。");
 
   useEffect(() => {
-    setRevealedCells(loadRevealedCells());
+    const loadedCells = loadRevealedCells();
+    const stats = loadDailyStats();
+
+    setRevealedCells(loadedCells);
+    setDistance(stats.distance);
+    setArea(stats.area);
+    setNewAreas(stats.newAreas);
+
     setHasLoaded(true);
   }, []);
 
@@ -193,32 +169,44 @@ export function AreaProvider({ children }: { children: ReactNode }) {
     saveRevealedCells(revealedCells);
   }, [revealedCells, hasLoaded]);
 
-  const revealCells = useCallback((amount: number) => {
-    let addedCount = 0;
+  useEffect(() => {
+    if (!hasLoaded) return;
 
-    setRevealedCells((prevCells) => {
-      const nextCells = new Set(prevCells);
-
-      for (const cellId of revealOrder) {
-        if (addedCount >= amount) break;
-
-        if (!nextCells.has(cellId)) {
-          nextCells.add(cellId);
-          addedCount += 1;
-        }
-      }
-
-      return nextCells;
+    saveDailyStats({
+      distance,
+      area,
+      newAreas,
     });
+  }, [distance, area, newAreas, hasLoaded]);
 
-    return addedCount;
-  }, []);
+  const revealCellsByPosition = useCallback(
+    (grid: GridPoint) => {
+      const revealIds = getRevealGridIds(grid);
+      let addedCount = 0;
+
+      setRevealedCells((prevCells) => {
+        const nextCells = new Set(prevCells);
+
+        for (const id of revealIds) {
+          if (!nextCells.has(id)) {
+            nextCells.add(id);
+            addedCount += 1;
+          }
+        }
+
+        return nextCells;
+      });
+
+      return addedCount;
+    },
+    []
+  );
 
   const resetArea = useCallback(() => {
-    const resetCells = new Set(initialRevealedCells);
+    const emptyCells = new Set<string>();
 
-    setRevealedCells(resetCells);
-    saveRevealedCells(resetCells);
+    setRevealedCells(emptyCells);
+    saveRevealedCells(emptyCells);
 
     setDistance(0);
     setArea(0);
@@ -226,6 +214,12 @@ export function AreaProvider({ children }: { children: ReactNode }) {
     setSpeedKmh(0);
     setMoveStatus("unknown");
     setMessage("AREAを初期化しました。");
+
+    saveDailyStats({
+      distance: 0,
+      area: 0,
+      newAreas: 0,
+    });
   }, []);
 
   useEffect(() => {
@@ -246,12 +240,23 @@ export function AreaProvider({ children }: { children: ReactNode }) {
           timestamp: pos.timestamp,
         };
 
+        const grid = positionToGridPoint(current.latitude, current.longitude);
+        const gridId = gridPointToId(grid);
+
         setPosition(current);
+        setCurrentGrid(grid);
 
         const previous = previousPositionRef.current;
 
         if (!previous) {
           previousPositionRef.current = current;
+
+          setRevealedCells((prevCells) => {
+            const nextCells = new Set(prevCells);
+            nextCells.add(gridId);
+            return nextCells;
+          });
+
           setMessage("現在地を取得しました。移動するとAREAが解放されます。");
           return;
         }
@@ -284,8 +289,7 @@ export function AreaProvider({ children }: { children: ReactNode }) {
           setDistance((prevValue) => Number((prevValue + movedKm).toFixed(3)));
 
           if (rule.canReveal) {
-            const revealAmount = 3;
-            const addedCount = revealCells(revealAmount);
+            const addedCount = revealCellsByPosition(grid);
 
             if (addedCount > 0) {
               setNewAreas((prevValue) => prevValue + addedCount);
@@ -309,7 +313,7 @@ export function AreaProvider({ children }: { children: ReactNode }) {
         }
 
         if (rule.canReveal) {
-          setMessage("20km/h未満で移動中。AREAのマスを解放しています。");
+          setMessage("20km/h未満で移動中。現在地周辺のAREAを解放しています。");
         } else {
           setMessage("0km/h、または20km/h以上のため、AREAは解放されません。");
         }
@@ -341,17 +345,24 @@ export function AreaProvider({ children }: { children: ReactNode }) {
         navigator.geolocation.clearWatch(watchIdRef.current);
       }
     };
-  }, [revealCells]);
+  }, [revealCellsByPosition]);
 
   const value = useMemo<AreaContextValue>(() => {
-    const revealedCount = revealedCells.size;
-    const totalCells = areaCells.length;
-    const openedRate = ((revealedCount / totalCells) * 100).toFixed(1);
+    const visibleCells = buildVisibleGridCells({
+      center: currentGrid,
+      revealedCells,
+      size: 9,
+    });
+
+    const totalVisibleCells = visibleCells.length;
+    const visibleRevealedCount = visibleCells.filter((cell) => cell.isRevealed).length;
+    const openedRate = ((visibleRevealedCount / totalVisibleCells) * 100).toFixed(1);
 
     return {
       revealedCells,
-      revealedCount,
-      totalCells,
+      visibleCells,
+      revealedCount: revealedCells.size,
+      totalVisibleCells,
       openedRate,
       resetArea,
 
@@ -362,6 +373,7 @@ export function AreaProvider({ children }: { children: ReactNode }) {
       speedKmh,
       moveStatus,
       position,
+      currentGrid,
       message,
     };
   }, [
@@ -374,6 +386,7 @@ export function AreaProvider({ children }: { children: ReactNode }) {
     speedKmh,
     moveStatus,
     position,
+    currentGrid,
     message,
   ]);
 
