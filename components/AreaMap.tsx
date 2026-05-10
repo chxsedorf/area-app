@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import maplibregl, {
   type GeoJSONSource,
   type Map as MapLibreMap,
@@ -17,14 +17,8 @@ function getMapStyleUrl() {
     return "https://demotiles.maplibre.org/style.json";
   }
 
-  // 未解放エリアをシンプルに見せるための淡色・低情報量マップ
+  // シンプルな地図
   return `https://api.maptiler.com/maps/basic-v2/style.json?key=${MAPTILER_KEY}`;
-
-  // より道路情報を細かくしたい場合はこちら
-  // return `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_KEY}`;
-
-  // 衛星写真にしたい場合はこちら
-  // return `https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`;
 }
 
 function cellIdToGridPoint(id: string) {
@@ -77,45 +71,11 @@ function buildRevealedGeoJson(cellIds: string[], latitudeHint: number) {
   };
 }
 
-/**
- * 未解放エリアを暗くするためのマスク。
- * 世界全体を覆う大きなPolygonを作り、
- * 開放済みセルを「穴」としてくり抜く。
- */
-function buildFogMaskGeoJson(cellIds: string[], latitudeHint: number) {
-  const worldOuterRing = [
-    [-180, -85],
-    [180, -85],
-    [180, 85],
-    [-180, 85],
-    [-180, -85],
-  ];
-
-  const holes = cellIds.map((id) => {
-    const ring = buildCellRing(id, latitudeHint);
-
-    // GeoJSONの穴は外周と逆向きにしておくと安定しやすい
-    return [...ring].reverse();
-  });
-
-  return {
-    type: "FeatureCollection",
-    features: [
-      {
-        type: "Feature",
-        properties: {},
-        geometry: {
-          type: "Polygon",
-          coordinates: [worldOuterRing, ...holes],
-        },
-      },
-    ],
-  };
-}
-
 export default function AreaMap() {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
+
+  const [mapReady, setMapReady] = useState(false);
 
   const { position, revealedCells, isTracking } = useArea();
 
@@ -144,84 +104,75 @@ export default function AreaMap() {
     );
 
     map.on("load", () => {
-      const cellIds = Array.from(revealedCells);
-      const latitudeHint = position?.latitude ?? initialLat;
+      const emptyFeatureCollection = {
+        type: "FeatureCollection",
+        features: [],
+      } as GeoJSON.FeatureCollection;
 
-      /**
-       * 開放済みセル
-       */
       map.addSource("revealed-cells", {
         type: "geojson",
-        data: buildRevealedGeoJson(
-          cellIds,
-          latitudeHint
-        ) as GeoJSON.FeatureCollection,
+        data: emptyFeatureCollection,
       });
 
-      /**
-       * 未解放エリアの暗いマスク
-       */
-      map.addSource("fog-mask", {
+      map.addSource("current-position", {
         type: "geojson",
-        data: buildFogMaskGeoJson(
-          cellIds,
-          latitudeHint
-        ) as GeoJSON.FeatureCollection,
+        data: emptyFeatureCollection,
       });
 
       /**
-       * 未解放エリア
-       * かなり暗めにして、地図の情報量を抑える。
+       * 画面全体を暗くするオーバーレイ。
+       * 未解放エリアを暗く・シンプルに見せる。
        */
       map.addLayer({
-        id: "fog-mask-fill",
-        type: "fill",
-        source: "fog-mask",
+        id: "dark-overlay",
+        type: "background",
         paint: {
-          "fill-color": "#020617",
-          "fill-opacity": 0.72,
+          "background-color": "#020617",
+          "background-opacity": 0.62,
         },
       });
 
       /**
-       * 開放済みエリア
-       * 地図は見えるようにしつつ、AREAとして青を薄く重ねる。
+       * 解放済みセルを明るく青く表示。
+       * 穴あけではなく、上から強調するので安定する。
        */
       map.addLayer({
         id: "revealed-cells-fill",
         type: "fill",
         source: "revealed-cells",
         paint: {
-          "fill-color": "#00AEEF",
-          "fill-opacity": 0.14,
+          "fill-color": "#38bdf8",
+          "fill-opacity": 0.48,
         },
       });
 
-      /**
-       * 開放済みセルの境界線
-       */
       map.addLayer({
         id: "revealed-cells-line",
         type: "line",
         source: "revealed-cells",
         paint: {
-          "line-color": "#38bdf8",
-          "line-width": 1.35,
-          "line-opacity": 0.9,
+          "line-color": "#e0f2fe",
+          "line-width": 1.5,
+          "line-opacity": 0.95,
+        },
+      });
+
+      /**
+       * 解放済みセルの中心を少し光らせる。
+       */
+      map.addLayer({
+        id: "revealed-cells-glow",
+        type: "fill",
+        source: "revealed-cells",
+        paint: {
+          "fill-color": "#7dd3fc",
+          "fill-opacity": 0.16,
         },
       });
 
       /**
        * 現在地
        */
-      map.addSource("current-position", {
-        type: "geojson",
-        data: {
-          type: "FeatureCollection",
-          features: [],
-        },
-      });
-
       map.addLayer({
         id: "current-position-point",
         type: "circle",
@@ -229,10 +180,23 @@ export default function AreaMap() {
         paint: {
           "circle-radius": 8,
           "circle-color": "#ffffff",
-          "circle-stroke-color": "#00AEEF",
+          "circle-stroke-color": "#38bdf8",
           "circle-stroke-width": 3,
         },
       });
+
+      map.addLayer({
+        id: "current-position-pulse",
+        type: "circle",
+        source: "current-position",
+        paint: {
+          "circle-radius": 18,
+          "circle-color": "#38bdf8",
+          "circle-opacity": 0.18,
+        },
+      });
+
+      setMapReady(true);
     });
 
     mapRef.current = map;
@@ -240,12 +204,36 @@ export default function AreaMap() {
     return () => {
       map.remove();
       mapRef.current = null;
+      setMapReady(false);
     };
   }, [mapStyle]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !position) return;
+
+    if (!map || !mapReady) return;
+
+    const latitudeHint = position?.latitude ?? 33.957;
+    const cellIds = Array.from(revealedCells);
+
+    const revealedSource = map.getSource("revealed-cells") as
+      | GeoJSONSource
+      | undefined;
+
+    if (revealedSource) {
+      revealedSource.setData(
+        buildRevealedGeoJson(
+          cellIds,
+          latitudeHint
+        ) as GeoJSON.FeatureCollection
+      );
+    }
+  }, [mapReady, revealedCells, position]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+
+    if (!map || !mapReady || !position) return;
 
     map.easeTo({
       center: [position.longitude, position.latitude],
@@ -270,41 +258,9 @@ export default function AreaMap() {
             },
           },
         ],
-      });
+      } as GeoJSON.FeatureCollection);
     }
-  }, [position]);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-
-    const cellIds = Array.from(revealedCells);
-    const latitudeHint = position?.latitude ?? 33.957;
-
-    const revealedSource = map.getSource("revealed-cells") as
-      | GeoJSONSource
-      | undefined;
-
-    if (revealedSource) {
-      revealedSource.setData(
-        buildRevealedGeoJson(
-          cellIds,
-          latitudeHint
-        ) as GeoJSON.FeatureCollection
-      );
-    }
-
-    const fogSource = map.getSource("fog-mask") as GeoJSONSource | undefined;
-
-    if (fogSource) {
-      fogSource.setData(
-        buildFogMaskGeoJson(
-          cellIds,
-          latitudeHint
-        ) as GeoJSON.FeatureCollection
-      );
-    }
-  }, [revealedCells, position]);
+  }, [mapReady, position]);
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-[#020912]">
