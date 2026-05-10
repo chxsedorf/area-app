@@ -18,7 +18,7 @@ function getMapStyleUrl() {
   }
 
   // 衛星写真ベースのリアル地図
-  return `https://api.maptiler.com/maps/satellite/style.json?key=${MAPTILER_KEY}`;
+  return `https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`;
 }
 
 function cellIdToGridPoint(id: string) {
