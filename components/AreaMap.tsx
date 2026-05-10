@@ -1,10 +1,24 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import maplibregl, { type GeoJSONSource, type Map as MapLibreMap } from "maplibre-gl";
+import { useEffect, useMemo, useRef } from "react";
+import maplibregl, {
+  type GeoJSONSource,
+  type Map as MapLibreMap,
+} from "maplibre-gl";
 import { useArea } from "@/components/AreaProvider";
 
-const MAP_STYLE = "https://demotiles.maplibre.org/style.json";
+const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY;
+
+const GRID_SIZE_METERS = 50;
+const METERS_PER_LAT_DEGREE = 111_320;
+
+function getMapStyleUrl() {
+  if (!MAPTILER_KEY) {
+    return "https://demotiles.maplibre.org/style.json";
+  }
+
+  return `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_KEY}`;
+}
 
 function cellIdToGridPoint(id: string) {
   const [x, y] = id.split(":").map(Number);
@@ -12,13 +26,11 @@ function cellIdToGridPoint(id: string) {
 }
 
 function gridPointToLngLat(x: number, y: number, latitudeHint: number) {
-  const gridSizeMeters = 50;
-  const metersPerLatDegree = 111_320;
   const metersPerLngDegree =
-    metersPerLatDegree * Math.cos((latitudeHint * Math.PI) / 180);
+    METERS_PER_LAT_DEGREE * Math.cos((latitudeHint * Math.PI) / 180);
 
-  const lat = (y * gridSizeMeters) / metersPerLatDegree;
-  const lng = (x * gridSizeMeters) / metersPerLngDegree;
+  const lat = (y * GRID_SIZE_METERS) / METERS_PER_LAT_DEGREE;
+  const lng = (x * GRID_SIZE_METERS) / metersPerLngDegree;
 
   return { lng, lat };
 }
@@ -26,10 +38,10 @@ function gridPointToLngLat(x: number, y: number, latitudeHint: number) {
 function buildCellPolygon(id: string, latitudeHint: number) {
   const { x, y } = cellIdToGridPoint(id);
 
-  const topLeft = gridPointToLngLat(x, y + 1, latitudeHint);
-  const topRight = gridPointToLngLat(x + 1, y + 1, latitudeHint);
-  const bottomRight = gridPointToLngLat(x + 1, y, latitudeHint);
   const bottomLeft = gridPointToLngLat(x, y, latitudeHint);
+  const bottomRight = gridPointToLngLat(x + 1, y, latitudeHint);
+  const topRight = gridPointToLngLat(x + 1, y + 1, latitudeHint);
+  const topLeft = gridPointToLngLat(x, y + 1, latitudeHint);
 
   return {
     type: "Feature",
@@ -62,6 +74,8 @@ export default function AreaMap() {
 
   const { position, revealedCells, isTracking } = useArea();
 
+  const mapStyle = useMemo(() => getMapStyleUrl(), []);
+
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
@@ -70,9 +84,11 @@ export default function AreaMap() {
 
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: MAP_STYLE,
+      style: mapStyle,
       center: [initialLng, initialLat],
-      zoom: 15,
+      zoom: 16,
+      pitch: 0,
+      bearing: 0,
       attributionControl: false,
     });
 
@@ -97,7 +113,7 @@ export default function AreaMap() {
         source: "revealed-cells",
         paint: {
           "fill-color": "#0ea5e9",
-          "fill-opacity": 0.35,
+          "fill-opacity": 0.28,
         },
       });
 
@@ -106,9 +122,9 @@ export default function AreaMap() {
         type: "line",
         source: "revealed-cells",
         paint: {
-          "line-color": "#7dd3fc",
-          "line-width": 1.5,
-          "line-opacity": 0.75,
+          "line-color": "#0284c7",
+          "line-width": 1.4,
+          "line-opacity": 0.8,
         },
       });
 
@@ -139,7 +155,7 @@ export default function AreaMap() {
       map.remove();
       mapRef.current = null;
     };
-  }, []);
+  }, [mapStyle]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -148,10 +164,12 @@ export default function AreaMap() {
     map.easeTo({
       center: [position.longitude, position.latitude],
       duration: 700,
-      zoom: Math.max(map.getZoom(), 15),
+      zoom: Math.max(map.getZoom(), 16),
     });
 
-    const source = map.getSource("current-position") as GeoJSONSource | undefined;
+    const source = map.getSource("current-position") as
+      | GeoJSONSource
+      | undefined;
 
     if (source) {
       source.setData({
@@ -174,7 +192,9 @@ export default function AreaMap() {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
 
-    const source = map.getSource("revealed-cells") as GeoJSONSource | undefined;
+    const source = map.getSource("revealed-cells") as
+      | GeoJSONSource
+      | undefined;
 
     if (!source) return;
 
@@ -187,8 +207,17 @@ export default function AreaMap() {
   }, [revealedCells, position]);
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-[2rem] border border-white/10 bg-[#020912] shadow-2xl">
+    <div className="relative h-full w-full overflow-hidden bg-[#020912]">
       <div ref={mapContainerRef} className="h-full w-full" />
+
+      {!MAPTILER_KEY && (
+        <div className="pointer-events-none absolute left-4 top-4 rounded-2xl bg-red-600/90 px-4 py-3 text-white backdrop-blur">
+          <p className="text-[10px] font-bold text-white/70">MAP KEY</p>
+          <p className="text-xs font-black">
+            MapTiler APIキー未設定のためデモ地図です
+          </p>
+        </div>
+      )}
 
       <div className="pointer-events-none absolute left-4 top-4 rounded-2xl bg-[#001B2A]/80 px-4 py-3 text-white backdrop-blur">
         <p className="text-[10px] font-bold text-white/45">MAP</p>
