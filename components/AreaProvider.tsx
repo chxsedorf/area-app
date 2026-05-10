@@ -322,9 +322,11 @@ export function AreaProvider({ children }: { children: ReactNode }) {
         }
 
         if (rule.canReveal) {
-          setMessage("20km/h未満で移動中。現在地周辺のAREAを解放しています。");
+          setMessage(
+            "1km/h以上〜20km/h未満で移動中。現在地周辺のAREAを解放しています。"
+          );
         } else {
-          setMessage("0km/h、または20km/h以上のため、AREAは解放されません。");
+          setMessage("停止中、または20km/h以上のため、AREAは解放されません。");
         }
       },
       (error) => {

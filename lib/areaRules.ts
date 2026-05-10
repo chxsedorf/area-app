@@ -11,8 +11,13 @@ export type AreaRule = {
 };
 
 export function judgeMoveStatus(speedKmh: number): MoveStatus {
-  if (speedKmh <= 0) return "stopped";
+  // GPSブレ対策：1km/h未満は停止扱い
+  if (speedKmh < 1) return "stopped";
+
+  // 1km/h以上〜20km/h未満だけAREA解放
   if (speedKmh < 20) return "moving";
+
+  // 20km/h以上は高速移動扱い
   return "fast";
 }
 

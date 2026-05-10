@@ -51,20 +51,21 @@ export default function ProfilePage() {
               </div>
 
               <div className="rounded-2xl bg-white/10 p-4">
-                <p className="text-xs text-white/55">解放率</p>
+                <p className="text-xs text-white/55">表示解放率</p>
                 <p className="mt-2 text-2xl font-black">{openedRate}</p>
                 <p className="text-xs text-white/55">%</p>
               </div>
 
               <div className="rounded-2xl bg-white/10 p-4">
-                <p className="text-xs text-white/55">解放マス</p>
+                <p className="text-xs text-white/55">総解放マス</p>
                 <p className="mt-2 text-2xl font-black">{revealedCount}</p>
-                <p className="text-xs text-white/55">/ {totalCells}</p>
+                <p className="text-xs text-white/55">cells</p>
               </div>
 
               <div className="rounded-2xl bg-white/10 p-4">
-                <p className="text-xs text-white/55">称号</p>
-                <p className="mt-2 text-lg font-black">開拓者</p>
+                <p className="text-xs text-white/55">表示マス</p>
+                <p className="mt-2 text-2xl font-black">{totalCells}</p>
+                <p className="text-xs text-white/55">cells</p>
               </div>
             </div>
           </div>
@@ -74,16 +75,16 @@ export default function ProfilePage() {
 
             <div className="mt-4 space-y-3">
               <div className="rounded-2xl bg-[#f3f6f8] p-4">
-                <p className="text-sm font-black">0km/h</p>
+                <p className="text-sm font-black">停止中</p>
                 <p className="mt-1 text-xs font-bold leading-5 text-[#6b7a88]">
-                  停止中はAREAは解放されません。
+                  GPSブレ対策のため、1km/h未満は停止扱いになり、AREAは解放されません。
                 </p>
               </div>
 
               <div className="rounded-2xl bg-[#f3f6f8] p-4">
-                <p className="text-sm font-black">0km/h超〜20km/h未満</p>
+                <p className="text-sm font-black">1km/h以上〜20km/h未満</p>
                 <p className="mt-1 text-xs font-bold leading-5 text-[#6b7a88]">
-                  移動中として判定され、AREAのマスが解放されます。
+                  移動中として判定され、現在地周辺100mのAREAが解放されます。
                 </p>
               </div>
 
