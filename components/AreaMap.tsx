@@ -17,8 +17,11 @@ function getMapStyleUrl() {
     return "https://demotiles.maplibre.org/style.json";
   }
 
-  // シンプルな地図
-  return `https://api.maptiler.com/maps/basic-v2/style.json?key=${MAPTILER_KEY}`;
+  // 航空写真 + 地名/道路ラベル
+  return `https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`;
+
+  // シンプル地図に戻したい場合はこちら
+  // return `https://api.maptiler.com/maps/basic-v2/style.json?key=${MAPTILER_KEY}`;
 }
 
 function cellIdToGridPoint(id: string) {
@@ -121,20 +124,20 @@ export default function AreaMap() {
 
       /**
        * 画面全体を暗くするオーバーレイ。
-       * 未解放エリアを暗く・シンプルに見せる。
+       * 航空写真の情報量を抑えて、未解放エリアっぽく見せる。
        */
       map.addLayer({
         id: "dark-overlay",
         type: "background",
         paint: {
           "background-color": "#020617",
-          "background-opacity": 0.62,
+          "background-opacity": 0.56,
         },
       });
 
       /**
-       * 解放済みセルを明るく青く表示。
-       * 穴あけではなく、上から強調するので安定する。
+       * 解放済みセルを青く表示。
+       * 穴あけ方式ではなく、上から強調する方式なので安定する。
        */
       map.addLayer({
         id: "revealed-cells-fill",
@@ -142,7 +145,7 @@ export default function AreaMap() {
         source: "revealed-cells",
         paint: {
           "fill-color": "#38bdf8",
-          "fill-opacity": 0.48,
+          "fill-opacity": 0.42,
         },
       });
 
@@ -157,16 +160,13 @@ export default function AreaMap() {
         },
       });
 
-      /**
-       * 解放済みセルの中心を少し光らせる。
-       */
       map.addLayer({
         id: "revealed-cells-glow",
         type: "fill",
         source: "revealed-cells",
         paint: {
           "fill-color": "#7dd3fc",
-          "fill-opacity": 0.16,
+          "fill-opacity": 0.14,
         },
       });
 
@@ -274,13 +274,6 @@ export default function AreaMap() {
           </p>
         </div>
       )}
-
-      <div className="pointer-events-none absolute left-4 top-4 rounded-2xl bg-[#001B2A]/80 px-4 py-3 text-white backdrop-blur">
-        <p className="text-[10px] font-bold text-white/45">MAP</p>
-        <p className="text-sm font-black">
-          {isTracking ? "Area View" : "Waiting"}
-        </p>
-      </div>
     </div>
   );
 }
