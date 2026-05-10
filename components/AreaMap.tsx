@@ -17,8 +17,8 @@ function getMapStyleUrl() {
     return "https://demotiles.maplibre.org/style.json";
   }
 
-  // よりリアルな地図：衛星写真 + 道路名/地名ラベル
-  return `https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`;
+  // 衛星写真ベースのリアル地図
+  return `https://api.maptiler.com/maps/satellite/style.json?key=${MAPTILER_KEY}`;
 }
 
 function cellIdToGridPoint(id: string) {
@@ -114,7 +114,7 @@ export default function AreaMap() {
         source: "revealed-cells",
         paint: {
           "fill-color": "#00AEEF",
-          "fill-opacity": 0.32,
+          "fill-opacity": 0.34,
         },
       });
 
@@ -125,7 +125,7 @@ export default function AreaMap() {
         paint: {
           "line-color": "#7dd3fc",
           "line-width": 1.6,
-          "line-opacity": 0.9,
+          "line-opacity": 0.95,
         },
       });
 
