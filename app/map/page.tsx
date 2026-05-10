@@ -2,7 +2,6 @@
 
 import BottomNav from "@/components/BottomNav";
 import { areaCells, useArea } from "@/components/AreaProvider";
-import { getAreaRule } from "@/lib/areaRules";
 
 export default function MapPage() {
   const {
@@ -15,11 +14,7 @@ export default function MapPage() {
     area,
     newAreas,
     speedKmh,
-    moveStatus,
-    message,
   } = useArea();
-
-  const currentRule = getAreaRule(moveStatus);
 
   return (
     <main className="min-h-screen bg-[#020912] text-white">
@@ -73,7 +68,7 @@ export default function MapPage() {
           </div>
 
           {/* Grid Map */}
-          <div className="flex flex-1 items-center justify-center px-4 pb-36 pt-48">
+          <div className="flex flex-1 items-center justify-center px-4 pb-32 pt-48">
             <div className="w-full rounded-[2rem] border border-white/10 bg-white/[0.035] p-3 shadow-2xl backdrop-blur">
               <div className="grid grid-cols-[repeat(9,minmax(0,1fr))] gap-[4px]">
                 {areaCells.map((cell) => {
@@ -106,19 +101,11 @@ export default function MapPage() {
 
           {/* Bottom info frame */}
           <div className="absolute bottom-[76px] left-4 right-4 z-20 rounded-[2rem] border border-white/10 bg-[#001B2A]/80 p-4 shadow-2xl backdrop-blur">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div className="rounded-2xl bg-white/10 p-3">
                 <p className="text-[10px] font-bold text-white/45">速度</p>
                 <p className="mt-1 text-lg font-black">{speedKmh}</p>
                 <p className="text-[10px] font-bold text-white/45">km/h</p>
-              </div>
-
-              <div className="rounded-2xl bg-white/10 p-3">
-                <p className="text-[10px] font-bold text-white/45">状態</p>
-                <p className="mt-1 text-sm font-black">{currentRule.label}</p>
-                <p className="text-[10px] font-bold text-white/45">
-                  {currentRule.openRangeLabel}
-                </p>
               </div>
 
               <div className="rounded-2xl bg-white/10 p-3">
@@ -128,13 +115,6 @@ export default function MapPage() {
                   {revealedCount}/{totalCells}
                 </p>
               </div>
-            </div>
-
-            <div className="mt-3 rounded-2xl bg-white/10 p-3">
-              <p className="text-[10px] font-bold text-white/45">MESSAGE</p>
-              <p className="mt-1 text-xs font-bold leading-5 text-white/80">
-                {message}
-              </p>
             </div>
           </div>
         </section>
