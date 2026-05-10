@@ -17,10 +17,13 @@ function getMapStyleUrl() {
     return "https://demotiles.maplibre.org/style.json";
   }
 
-  // シンプルな通常地図
-  return `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_KEY}`;
+  // 未解放エリアをシンプルに見せるための淡色・低情報量マップ
+  return `https://api.maptiler.com/maps/basic-v2/style.json?key=${MAPTILER_KEY}`;
 
-  // 衛星写真に戻したい場合はこちら
+  // より道路情報を細かくしたい場合はこちら
+  // return `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_KEY}`;
+
+  // 衛星写真にしたい場合はこちら
   // return `https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`;
 }
 
@@ -144,7 +147,9 @@ export default function AreaMap() {
       const cellIds = Array.from(revealedCells);
       const latitudeHint = position?.latitude ?? initialLat;
 
-      // 開放済みセル
+      /**
+       * 開放済みセル
+       */
       map.addSource("revealed-cells", {
         type: "geojson",
         data: buildRevealedGeoJson(
@@ -153,7 +158,9 @@ export default function AreaMap() {
         ) as GeoJSON.FeatureCollection,
       });
 
-      // 未解放エリアの暗いマスク
+      /**
+       * 未解放エリアの暗いマスク
+       */
       map.addSource("fog-mask", {
         type: "geojson",
         data: buildFogMaskGeoJson(
@@ -164,21 +171,21 @@ export default function AreaMap() {
 
       /**
        * 未解放エリア
-       * 真っ黒ではなく、地図が少し見える暗めのフィルターにする。
+       * かなり暗めにして、地図の情報量を抑える。
        */
       map.addLayer({
         id: "fog-mask-fill",
         type: "fill",
         source: "fog-mask",
         paint: {
-          "fill-color": "#0f172a",
-          "fill-opacity": 0.55,
+          "fill-color": "#020617",
+          "fill-opacity": 0.72,
         },
       });
 
       /**
        * 開放済みエリア
-       * 地図は明るく見せつつ、AREAとして分かるように青を薄く重ねる。
+       * 地図は見えるようにしつつ、AREAとして青を薄く重ねる。
        */
       map.addLayer({
         id: "revealed-cells-fill",
@@ -186,22 +193,27 @@ export default function AreaMap() {
         source: "revealed-cells",
         paint: {
           "fill-color": "#00AEEF",
-          "fill-opacity": 0.16,
+          "fill-opacity": 0.14,
         },
       });
 
+      /**
+       * 開放済みセルの境界線
+       */
       map.addLayer({
         id: "revealed-cells-line",
         type: "line",
         source: "revealed-cells",
         paint: {
           "line-color": "#38bdf8",
-          "line-width": 1.4,
+          "line-width": 1.35,
           "line-opacity": 0.9,
         },
       });
 
-      // 現在地
+      /**
+       * 現在地
+       */
       map.addSource("current-position", {
         type: "geojson",
         data: {
