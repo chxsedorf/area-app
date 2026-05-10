@@ -258,17 +258,20 @@ export function AreaProvider({ children }: { children: ReactNode }) {
         const previous = previousPositionRef.current;
 
         if (!previous) {
-          previousPositionRef.current = current;
+  previousPositionRef.current = current;
 
-          setRevealedCells((prevCells) => {
-            const nextCells = new Set(prevCells);
-            nextCells.add(gridId);
-            return nextCells;
-          });
+  const addedCount = revealCellsByPosition(grid);
 
-          setMessage("現在地を取得しました。移動するとAREAが解放されます。");
-          return;
-        }
+  if (addedCount > 0) {
+    setNewAreas((prevValue) => prevValue + addedCount);
+    setArea((prevValue) =>
+      Number((prevValue + 0.006 * addedCount).toFixed(3))
+    );
+  }
+
+  setMessage("現在地周辺のAREAを解放しました。移動するとさらに広がります。");
+  return;
+}
 
         const movedKm = getDistanceKm(
           previous.latitude,

@@ -17,11 +17,11 @@ function getMapStyleUrl() {
     return "https://demotiles.maplibre.org/style.json";
   }
 
-  // Google Mapの航空写真寄りにしたい場合
-  return `https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`;
+  // シンプルな通常地図
+  return `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_KEY}`;
 
-  // 通常のシンプルな地図にしたい場合は、上をコメントアウトして下を使う
-  // return `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_KEY}`;
+  // 衛星写真に戻したい場合はこちら
+  // return `https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`;
 }
 
 function cellIdToGridPoint(id: string) {
@@ -75,7 +75,7 @@ function buildRevealedGeoJson(cellIds: string[], latitudeHint: number) {
 }
 
 /**
- * 未開放エリアを暗く隠すためのマスク。
+ * 未解放エリアを暗くするためのマスク。
  * 世界全体を覆う大きなPolygonを作り、
  * 開放済みセルを「穴」としてくり抜く。
  */
@@ -91,9 +91,7 @@ function buildFogMaskGeoJson(cellIds: string[], latitudeHint: number) {
   const holes = cellIds.map((id) => {
     const ring = buildCellRing(id, latitudeHint);
 
-    /**
-     * GeoJSONの穴は外周と逆向きにしておくと安定しやすい。
-     */
+    // GeoJSONの穴は外周と逆向きにしておくと安定しやすい
     return [...ring].reverse();
   });
 
@@ -146,9 +144,7 @@ export default function AreaMap() {
       const cellIds = Array.from(revealedCells);
       const latitudeHint = position?.latitude ?? initialLat;
 
-      /**
-       * 開放済みセル
-       */
+      // 開放済みセル
       map.addSource("revealed-cells", {
         type: "geojson",
         data: buildRevealedGeoJson(
@@ -157,9 +153,7 @@ export default function AreaMap() {
         ) as GeoJSON.FeatureCollection,
       });
 
-      /**
-       * 未開放エリアの暗いマスク
-       */
+      // 未解放エリアの暗いマスク
       map.addSource("fog-mask", {
         type: "geojson",
         data: buildFogMaskGeoJson(
@@ -168,19 +162,23 @@ export default function AreaMap() {
         ) as GeoJSON.FeatureCollection,
       });
 
+      /**
+       * 未解放エリア
+       * 真っ黒ではなく、地図が少し見える暗めのフィルターにする。
+       */
       map.addLayer({
         id: "fog-mask-fill",
         type: "fill",
         source: "fog-mask",
         paint: {
-          "fill-color": "#020912",
-          "fill-opacity": 0.88,
+          "fill-color": "#0f172a",
+          "fill-opacity": 0.55,
         },
       });
 
       /**
-       * 開放済みエリアの薄い青フィルター
-       * 地図は見えるが、AREAとして開放済みだと分かるようにする。
+       * 開放済みエリア
+       * 地図は明るく見せつつ、AREAとして分かるように青を薄く重ねる。
        */
       map.addLayer({
         id: "revealed-cells-fill",
@@ -188,7 +186,7 @@ export default function AreaMap() {
         source: "revealed-cells",
         paint: {
           "fill-color": "#00AEEF",
-          "fill-opacity": 0.18,
+          "fill-opacity": 0.16,
         },
       });
 
@@ -197,15 +195,13 @@ export default function AreaMap() {
         type: "line",
         source: "revealed-cells",
         paint: {
-          "line-color": "#7dd3fc",
+          "line-color": "#38bdf8",
           "line-width": 1.4,
           "line-opacity": 0.9,
         },
       });
 
-      /**
-       * 現在地
-       */
+      // 現在地
       map.addSource("current-position", {
         type: "geojson",
         data: {
@@ -314,7 +310,7 @@ export default function AreaMap() {
       <div className="pointer-events-none absolute left-4 top-4 rounded-2xl bg-[#001B2A]/80 px-4 py-3 text-white backdrop-blur">
         <p className="text-[10px] font-bold text-white/45">MAP</p>
         <p className="text-sm font-black">
-          {isTracking ? "Fog of War" : "Waiting"}
+          {isTracking ? "Area View" : "Waiting"}
         </p>
       </div>
     </div>
