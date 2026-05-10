@@ -80,7 +80,7 @@ export default function AreaMap() {
 
   const [mapReady, setMapReady] = useState(false);
 
-  const { position, revealedCells, isTracking } = useArea();
+  const { position, revealedCells } = useArea();
 
   const mapStyle = useMemo(() => getMapStyleUrl(), []);
 
@@ -123,21 +123,20 @@ export default function AreaMap() {
       });
 
       /**
-       * 画面全体を暗くするオーバーレイ。
-       * 航空写真の情報量を抑えて、未解放エリアっぽく見せる。
+       * 画面全体を少しだけ暗くするオーバーレイ。
+       * 航空写真の明るさを残しつつ、AREAの青い解放マスを見やすくする。
        */
       map.addLayer({
         id: "dark-overlay",
         type: "background",
         paint: {
           "background-color": "#020617",
-          "background-opacity": 0.56,
+          "background-opacity": 0.28,
         },
       });
 
       /**
        * 解放済みセルを青く表示。
-       * 穴あけ方式ではなく、上から強調する方式なので安定する。
        */
       map.addLayer({
         id: "revealed-cells-fill",
