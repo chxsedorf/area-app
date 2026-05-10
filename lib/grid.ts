@@ -16,6 +16,7 @@ export type VisibleGridCell = {
   col: number;
   isCurrentPosition: boolean;
   isRevealed: boolean;
+  isRevealTarget: boolean;
 };
 
 export function getLngMeterRatio(latitude: number) {
@@ -23,7 +24,10 @@ export function getLngMeterRatio(latitude: number) {
   return METERS_PER_LAT_DEGREE * Math.cos(latitudeRad);
 }
 
-export function positionToGridPoint(latitude: number, longitude: number): GridPoint {
+export function positionToGridPoint(
+  latitude: number,
+  longitude: number
+): GridPoint {
   const metersPerLngDegree = getLngMeterRatio(latitude);
 
   const y = Math.floor((latitude * METERS_PER_LAT_DEGREE) / GRID_SIZE_METERS);
@@ -67,6 +71,7 @@ export function buildVisibleGridCells(params: {
 
   const fallbackCenter = center ?? { x: 0, y: 0 };
   const half = Math.floor(size / 2);
+  const revealTargetIds = new Set(getRevealGridIds(fallbackCenter));
 
   return Array.from({ length: size * size }, (_, index) => {
     const row = Math.floor(index / size);
@@ -84,6 +89,7 @@ export function buildVisibleGridCells(params: {
       col,
       isCurrentPosition: row === half && col === half,
       isRevealed: revealedCells.has(id),
+      isRevealTarget: revealTargetIds.has(id),
     };
   });
 }

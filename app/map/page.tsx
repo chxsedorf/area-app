@@ -1,13 +1,12 @@
 "use client";
 
 import BottomNav from "@/components/BottomNav";
+import AreaMap from "@/components/AreaMap";
 import { useArea } from "@/components/AreaProvider";
 
 export default function MapPage() {
   const {
-    visibleCells,
     revealedCount,
-    totalVisibleCells,
     openedRate,
     isTracking,
     distance,
@@ -20,9 +19,8 @@ export default function MapPage() {
     <main className="min-h-screen bg-[#020912] text-white">
       <div className="mx-auto flex min-h-screen max-w-md flex-col bg-[#020912]">
         <section className="relative flex flex-1 flex-col overflow-hidden">
-          <div className="pointer-events-none absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#0ea5e9]/20 blur-3xl" />
-
-          <div className="absolute left-4 right-4 top-5 z-20 rounded-[2rem] border border-white/10 bg-[#001B2A]/80 p-5 shadow-2xl backdrop-blur">
+          {/* Top info frame */}
+          <div className="absolute left-4 right-4 top-5 z-20 rounded-[2rem] border border-white/10 bg-[#001B2A]/85 p-5 shadow-2xl backdrop-blur">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold tracking-[0.35em] text-white/45">
@@ -65,36 +63,13 @@ export default function MapPage() {
             </div>
           </div>
 
-          <div className="flex flex-1 items-center justify-center px-4 pb-32 pt-48">
-            <div className="w-full rounded-[2rem] border border-white/10 bg-white/[0.035] p-3 shadow-2xl backdrop-blur">
-              <div className="grid grid-cols-[repeat(9,minmax(0,1fr))] gap-[4px]">
-                {visibleCells.map((cell) => {
-                  let cellClass =
-                    "relative aspect-square rounded-[8px] border border-white/5 bg-white/[0.035] transition-all duration-500";
-
-                  if (cell.isRevealed) {
-                    cellClass =
-                      "relative aspect-square rounded-[8px] border border-[#7dd3fc]/35 bg-[#0ea5e9]/45 shadow-[0_0_12px_rgba(56,189,248,0.35)] transition-all duration-500";
-                  }
-
-                  if (cell.isCurrentPosition) {
-                    cellClass =
-                      "relative aspect-square rounded-[8px] border border-white bg-white shadow-[0_0_24px_rgba(255,255,255,1)] transition-all duration-500";
-                  }
-
-                  return (
-                    <div key={cell.id} className={cellClass}>
-                      {cell.isCurrentPosition && isTracking && (
-                        <div className="absolute -inset-2 animate-ping rounded-lg bg-white/25" />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+          {/* Real Map */}
+          <div className="absolute inset-0 z-0">
+            <AreaMap />
           </div>
 
-          <div className="absolute bottom-[76px] left-4 right-4 z-20 rounded-[2rem] border border-white/10 bg-[#001B2A]/80 p-4 shadow-2xl backdrop-blur">
+          {/* Bottom info frame */}
+          <div className="absolute bottom-[76px] left-4 right-4 z-20 rounded-[2rem] border border-white/10 bg-[#001B2A]/85 p-4 shadow-2xl backdrop-blur">
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-2xl bg-white/10 p-3">
                 <p className="text-[10px] font-bold text-white/45">速度</p>
