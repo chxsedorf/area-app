@@ -1,19 +1,18 @@
 import Link from "next/link";
 
 type BottomNavProps = {
-  active: "home" | "map" | "quest" | "profile";
+  active: "map" | "quest" | "profile";
 };
 
 export default function BottomNav({ active }: BottomNavProps) {
   const items = [
-    { key: "home", label: "Home", href: "/" },
     { key: "map", label: "Map", href: "/map" },
     { key: "quest", label: "Quest", href: "/quest" },
     { key: "profile", label: "Profile", href: "/profile" },
   ] as const;
 
   return (
-    <nav className="grid grid-cols-4 border-t border-[#e6edf3] bg-white px-4 py-3 text-center text-xs font-bold text-[#8794a1]">
+    <nav className="grid grid-cols-3 border-t border-white/10 bg-[#001B2A]/95 px-4 py-3 text-center text-xs font-bold text-white/45 backdrop-blur">
       {items.map((item) => {
         const isActive = active === item.key;
 
@@ -21,10 +20,10 @@ export default function BottomNav({ active }: BottomNavProps) {
           <Link
             key={item.key}
             href={item.href}
-            className={isActive ? "text-[#001B2A]" : "text-[#8794a1]"}
+            className={isActive ? "text-white" : "text-white/45"}
           >
             {isActive && (
-              <div className="mx-auto mb-1 h-1.5 w-1.5 rounded-full bg-[#001B2A]" />
+              <div className="mx-auto mb-1 h-1.5 w-1.5 rounded-full bg-[#7dd3fc]" />
             )}
             <span>{item.label}</span>
           </Link>

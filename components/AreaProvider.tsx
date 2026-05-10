@@ -2,18 +2,29 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
+import { getDistanceKm } from "@/lib/distance";
+import { getAreaRule, judgeMoveStatus, type MoveStatus } from "@/lib/areaRules";
 
 export type AreaCell = {
   id: string;
   row: number;
   col: number;
   isCurrentPosition: boolean;
+};
+
+type PositionData = {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  timestamp: number;
 };
 
 const PREVIEW_ROWS = 9;
@@ -107,8 +118,16 @@ type AreaContextValue = {
   revealedCount: number;
   totalCells: number;
   openedRate: string;
-  revealCells: (amount: number) => number;
   resetArea: () => void;
+
+  isTracking: boolean;
+  distance: number;
+  area: number;
+  newAreas: number;
+  speedKmh: number;
+  moveStatus: MoveStatus;
+  position: PositionData | null;
+  message: string;
 };
 
 const AreaContext = createContext<AreaContextValue | null>(null);
@@ -139,16 +158,28 @@ function loadRevealedCells() {
 
 function saveRevealedCells(cells: Set<string>) {
   if (typeof window === "undefined") return;
-
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(cells)));
 }
 
 export function AreaProvider({ children }: { children: ReactNode }) {
+  const watchIdRef = useRef<number | null>(null);
+  const previousPositionRef = useRef<PositionData | null>(null);
+
   const [revealedCells, setRevealedCells] = useState<Set<string>>(
     () => new Set(initialRevealedCells)
   );
 
   const [hasLoaded, setHasLoaded] = useState(false);
+
+  const [isTracking, setIsTracking] = useState(false);
+  const [distance, setDistance] = useState(0);
+  const [area, setArea] = useState(0);
+  const [newAreas, setNewAreas] = useState(0);
+
+  const [speedKmh, setSpeedKmh] = useState(0);
+  const [moveStatus, setMoveStatus] = useState<MoveStatus>("unknown");
+  const [position, setPosition] = useState<PositionData | null>(null);
+  const [message, setMessage] = useState("位置情報を準備しています。");
 
   useEffect(() => {
     setRevealedCells(loadRevealedCells());
@@ -157,11 +188,10 @@ export function AreaProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!hasLoaded) return;
-
     saveRevealedCells(revealedCells);
   }, [revealedCells, hasLoaded]);
 
-  const revealCells = (amount: number) => {
+  const revealCells = useCallback((amount: number) => {
     let addedCount = 0;
 
     setRevealedCells((prevCells) => {
@@ -180,13 +210,135 @@ export function AreaProvider({ children }: { children: ReactNode }) {
     });
 
     return addedCount;
-  };
+  }, []);
 
-  const resetArea = () => {
+  const resetArea = useCallback(() => {
     const resetCells = new Set(initialRevealedCells);
     setRevealedCells(resetCells);
     saveRevealedCells(resetCells);
-  };
+
+    setDistance(0);
+    setArea(0);
+    setNewAreas(0);
+    setSpeedKmh(0);
+    setMoveStatus("unknown");
+    setMessage("AREAを初期化しました。");
+  }, []);
+
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setMessage("このブラウザは位置情報取得に対応していません。");
+      return;
+    }
+
+    setIsTracking(true);
+    setMessage("位置情報を取得中です...");
+
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        const current: PositionData = {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+          timestamp: pos.timestamp,
+        };
+
+        setPosition(current);
+
+        const previous = previousPositionRef.current;
+
+        if (!previous) {
+          previousPositionRef.current = current;
+          setMessage("現在地を取得しました。移動するとAREAが解放されます。");
+          return;
+        }
+
+        const movedKm = getDistanceKm(
+          previous.latitude,
+          previous.longitude,
+          current.latitude,
+          current.longitude
+        );
+
+        const timeDiffHours =
+          (current.timestamp - previous.timestamp) / 1000 / 60 / 60;
+
+        if (timeDiffHours <= 0) return;
+
+        const currentSpeedKmh = movedKm / timeDiffHours;
+        const roundedSpeed = Number(currentSpeedKmh.toFixed(1));
+        const status = judgeMoveStatus(roundedSpeed);
+        const rule = getAreaRule(status);
+
+        setSpeedKmh(roundedSpeed);
+        setMoveStatus(status);
+
+        const isReliable = current.accuracy <= 80;
+        const movedMeters = movedKm * 1000;
+        const isRealMove = movedMeters >= 3;
+
+        if (isReliable && isRealMove) {
+          setDistance((prevValue) => Number((prevValue + movedKm).toFixed(3)));
+
+          if (rule.canReveal) {
+            const revealAmount = status === "human" ? 3 : 1;
+            const addedCount = revealCells(revealAmount);
+
+            if (addedCount > 0) {
+              setNewAreas((prevValue) => prevValue + addedCount);
+              setArea((prevValue) =>
+                Number((prevValue + rule.areaGainKm2 * addedCount).toFixed(3))
+              );
+            }
+          }
+        }
+
+        previousPositionRef.current = current;
+
+        if (!isReliable) {
+          setMessage("GPS精度が低いため、マス解放を一時停止しています。");
+          return;
+        }
+
+        if (!isRealMove) {
+          setMessage("移動が小さいため、マスはまだ解放されていません。");
+          return;
+        }
+
+        if (rule.canReveal) {
+          setMessage("20km/h以下で通過中。AREAのマスを解放しています。");
+        } else {
+          setMessage("20km/hを超えているため、AREAは解放されません。");
+        }
+      },
+      (error) => {
+        setIsTracking(false);
+
+        if (error.code === error.PERMISSION_DENIED) {
+          setMessage(
+            "位置情報の許可が拒否されました。ブラウザ設定から許可してください。"
+          );
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          setMessage("現在地を取得できませんでした。屋外でもう一度試してください。");
+        } else if (error.code === error.TIMEOUT) {
+          setMessage("位置情報の取得がタイムアウトしました。もう一度試してください。");
+        } else {
+          setMessage("位置情報の取得中にエラーが発生しました。");
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 10000,
+      }
+    );
+
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+    };
+  }, [revealCells]);
 
   const value = useMemo<AreaContextValue>(() => {
     const revealedCount = revealedCells.size;
@@ -198,10 +350,29 @@ export function AreaProvider({ children }: { children: ReactNode }) {
       revealedCount,
       totalCells,
       openedRate,
-      revealCells,
       resetArea,
+
+      isTracking,
+      distance,
+      area,
+      newAreas,
+      speedKmh,
+      moveStatus,
+      position,
+      message,
     };
-  }, [revealedCells]);
+  }, [
+    revealedCells,
+    resetArea,
+    isTracking,
+    distance,
+    area,
+    newAreas,
+    speedKmh,
+    moveStatus,
+    position,
+    message,
+  ]);
 
   return <AreaContext.Provider value={value}>{children}</AreaContext.Provider>;
 }

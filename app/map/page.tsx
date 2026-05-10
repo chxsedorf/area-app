@@ -2,72 +2,81 @@
 
 import BottomNav from "@/components/BottomNav";
 import { areaCells, useArea } from "@/components/AreaProvider";
+import { getAreaRule } from "@/lib/areaRules";
 
 export default function MapPage() {
-  const { revealedCells, revealedCount, totalCells, openedRate } = useArea();
+  const {
+    revealedCells,
+    revealedCount,
+    totalCells,
+    openedRate,
+    isTracking,
+    distance,
+    area,
+    newAreas,
+    speedKmh,
+    moveStatus,
+    position,
+    message,
+  } = useArea();
+
+  const currentRule = getAreaRule(moveStatus);
 
   return (
-    <main className="min-h-screen bg-[#f7f8fa] text-[#001B2A]">
-      <div className="mx-auto flex min-h-screen max-w-md flex-col bg-white shadow-xl">
-        <section className="flex flex-1 flex-col px-6 pb-6 pt-10">
-          {/* Header */}
-          <div className="flex items-end justify-between">
-            <div>
-              <p className="text-xs font-semibold tracking-[0.35em] text-[#6b7a88]">
-                YOUR AREA
-              </p>
-              <h1 className="mt-2 text-4xl font-black tracking-tight">Map</h1>
-            </div>
+    <main className="min-h-screen bg-[#020912] text-white">
+      <div className="mx-auto flex min-h-screen max-w-md flex-col bg-[#020912]">
+        <section className="relative flex flex-1 flex-col overflow-hidden">
+          {/* Background glow */}
+          <div className="pointer-events-none absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#0ea5e9]/20 blur-3xl" />
 
-            <div className="rounded-full bg-[#001B2A] px-4 py-2 text-xs font-black text-white">
-              {openedRate}%
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div className="mt-6 grid grid-cols-3 gap-3">
-            <div className="rounded-3xl bg-[#f3f6f8] p-4">
-              <p className="text-[11px] font-bold text-[#6b7a88]">解放面積</p>
-              <p className="mt-2 text-xl font-black">
-                {(revealedCount * 0.0025).toFixed(3)}
-              </p>
-              <p className="text-[11px] font-bold text-[#6b7a88]">km²</p>
-            </div>
-
-            <div className="rounded-3xl bg-[#f3f6f8] p-4">
-              <p className="text-[11px] font-bold text-[#6b7a88]">GRID</p>
-              <p className="mt-2 text-xl font-black">50</p>
-              <p className="text-[11px] font-bold text-[#6b7a88]">m</p>
-            </div>
-
-            <div className="rounded-3xl bg-[#f3f6f8] p-4">
-              <p className="text-[11px] font-bold text-[#6b7a88]">解放マス</p>
-              <p className="mt-2 text-xl font-black">{revealedCount}</p>
-              <p className="text-[11px] font-bold text-[#6b7a88]">
-                / {totalCells}
-              </p>
-            </div>
-          </div>
-
-          {/* Map */}
-          <div className="mt-6 overflow-hidden rounded-[2rem] bg-[#061421] p-4 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between">
+          {/* Top info frame */}
+          <div className="absolute left-4 right-4 top-5 z-20 rounded-[2rem] border border-white/10 bg-[#001B2A]/80 p-5 shadow-2xl backdrop-blur">
+            <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-black text-white">AREA Grid</p>
-                <p className="mt-1 text-xs font-bold text-white/45">
-                  Homeで解放したマスがここにも反映されます
+                <p className="text-xs font-semibold tracking-[0.35em] text-white/45">
+                  EXPLORE YOUR
                 </p>
+                <h1 className="mt-1 text-4xl font-black tracking-[0.22em]">
+                  AREA
+                </h1>
               </div>
 
-              <div className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-black text-white">
-                LIVE GRID
+              <div
+                className={`rounded-full px-3 py-1 text-xs font-black ${
+                  isTracking
+                    ? "bg-[#7dd3fc] text-[#001B2A]"
+                    : "bg-white/10 text-white"
+                }`}
+              >
+                {isTracking ? "AUTO" : "OFF"}
               </div>
             </div>
 
-            <div className="relative overflow-hidden rounded-[1.5rem] bg-[#020912] p-3">
-              <div className="absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#0ea5e9]/20 blur-3xl" />
+            <div className="mt-5 grid grid-cols-3 gap-3">
+              <div className="rounded-2xl bg-white/10 p-3">
+                <p className="text-[10px] font-bold text-white/45">解放面積</p>
+                <p className="mt-1 text-lg font-black">{area}</p>
+                <p className="text-[10px] font-bold text-white/45">km²</p>
+              </div>
 
-              <div className="relative z-10 grid grid-cols-[repeat(9,minmax(0,1fr))] gap-[4px]">
+              <div className="rounded-2xl bg-white/10 p-3">
+                <p className="text-[10px] font-bold text-white/45">移動距離</p>
+                <p className="mt-1 text-lg font-black">{distance}</p>
+                <p className="text-[10px] font-bold text-white/45">km</p>
+              </div>
+
+              <div className="rounded-2xl bg-white/10 p-3">
+                <p className="text-[10px] font-bold text-white/45">新規マス</p>
+                <p className="mt-1 text-lg font-black">{newAreas}</p>
+                <p className="text-[10px] font-bold text-white/45">cells</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Grid Map */}
+          <div className="flex flex-1 items-center justify-center px-4 pt-48 pb-36">
+            <div className="w-full rounded-[2rem] border border-white/10 bg-white/[0.035] p-3 shadow-2xl backdrop-blur">
+              <div className="grid grid-cols-[repeat(9,minmax(0,1fr))] gap-[4px]">
                 {areaCells.map((cell) => {
                   const isRevealed = revealedCells.has(cell.id);
 
@@ -84,49 +93,78 @@ export default function MapPage() {
                       "relative aspect-square rounded-[8px] border border-white bg-white shadow-[0_0_24px_rgba(255,255,255,1)] transition-all duration-500";
                   }
 
-                  return <div key={cell.id} className={cellClass} />;
+                  return (
+                    <div key={cell.id} className={cellClass}>
+                      {cell.isCurrentPosition && isTracking && (
+                        <div className="absolute -inset-2 animate-ping rounded-lg bg-white/25" />
+                      )}
+                    </div>
+                  );
                 })}
-              </div>
-
-              <div className="absolute left-5 top-5 z-20 rounded-2xl bg-black/40 px-3 py-2 backdrop-blur">
-                <p className="text-[11px] font-bold text-white/60">RULE</p>
-                <p className="text-sm font-black text-white">≤20km/h 解放</p>
-              </div>
-
-              <div className="absolute bottom-5 right-5 z-20 rounded-2xl bg-white/10 px-3 py-2 backdrop-blur">
-                <p className="text-[11px] font-bold text-white/60">OPENED</p>
-                <p className="text-sm font-black text-white">
-                  {revealedCount} / {totalCells}
-                </p>
               </div>
             </div>
           </div>
 
-          {/* Legend */}
-          <div className="mt-4 grid grid-cols-3 gap-3">
-            <div className="rounded-2xl bg-[#f3f6f8] p-3">
-              <div className="h-4 w-4 rounded bg-[#0ea5e9]/60 shadow-[0_0_10px_rgba(56,189,248,0.4)]" />
-              <p className="mt-2 text-[11px] font-black">解放済み</p>
-              <p className="mt-1 text-[10px] font-bold text-[#6b7a88]">
-                20km/h以下
+          {/* Bottom info frame */}
+          <div className="absolute bottom-[76px] left-4 right-4 z-20 rounded-[2rem] border border-white/10 bg-[#001B2A]/80 p-4 shadow-2xl backdrop-blur">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-2xl bg-white/10 p-3">
+                <p className="text-[10px] font-bold text-white/45">速度</p>
+                <p className="mt-1 text-lg font-black">{speedKmh}</p>
+                <p className="text-[10px] font-bold text-white/45">km/h</p>
+              </div>
+
+              <div className="rounded-2xl bg-white/10 p-3">
+                <p className="text-[10px] font-bold text-white/45">状態</p>
+                <p className="mt-1 text-sm font-black">{currentRule.label}</p>
+                <p className="text-[10px] font-bold text-white/45">
+                  {currentRule.openRangeLabel}
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-white/10 p-3">
+                <p className="text-[10px] font-bold text-white/45">解放率</p>
+                <p className="mt-1 text-lg font-black">{openedRate}%</p>
+                <p className="text-[10px] font-bold text-white/45">
+                  {revealedCount}/{totalCells}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-3 rounded-2xl bg-white/10 p-3">
+              <p className="text-[10px] font-bold text-white/45">MESSAGE</p>
+              <p className="mt-1 text-xs font-bold leading-5 text-white/80">
+                {message}
               </p>
             </div>
 
-            <div className="rounded-2xl bg-[#f3f6f8] p-3">
-              <div className="h-4 w-4 rounded bg-white shadow-[0_0_10px_rgba(0,0,0,0.15)]" />
-              <p className="mt-2 text-[11px] font-black">現在地</p>
-              <p className="mt-1 text-[10px] font-bold text-[#6b7a88]">
-                現在の中心
-              </p>
-            </div>
+            {position && (
+              <div className="mt-3 grid grid-cols-3 gap-3 text-[10px] font-bold text-white/55">
+                <div className="rounded-xl bg-white/10 p-2">
+                  緯度
+                  <br />
+                  <span className="text-white">
+                    {position.latitude.toFixed(4)}
+                  </span>
+                </div>
 
-            <div className="rounded-2xl bg-[#f3f6f8] p-3">
-              <div className="h-4 w-4 rounded bg-white/[0.08] ring-1 ring-[#001B2A]/10" />
-              <p className="mt-2 text-[11px] font-black">未解放</p>
-              <p className="mt-1 text-[10px] font-bold text-[#6b7a88]">
-                20km/h超は無効
-              </p>
-            </div>
+                <div className="rounded-xl bg-white/10 p-2">
+                  経度
+                  <br />
+                  <span className="text-white">
+                    {position.longitude.toFixed(4)}
+                  </span>
+                </div>
+
+                <div className="rounded-xl bg-white/10 p-2">
+                  精度
+                  <br />
+                  <span className="text-white">
+                    約{Math.round(position.accuracy)}m
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </section>
 
