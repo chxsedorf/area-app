@@ -16,7 +16,6 @@ export default function MapPage() {
     newAreas,
     speedKmh,
     moveStatus,
-    position,
     message,
   } = useArea();
 
@@ -74,7 +73,7 @@ export default function MapPage() {
           </div>
 
           {/* Grid Map */}
-          <div className="flex flex-1 items-center justify-center px-4 pt-48 pb-36">
+          <div className="flex flex-1 items-center justify-center px-4 pb-36 pt-48">
             <div className="w-full rounded-[2rem] border border-white/10 bg-white/[0.035] p-3 shadow-2xl backdrop-blur">
               <div className="grid grid-cols-[repeat(9,minmax(0,1fr))] gap-[4px]">
                 {areaCells.map((cell) => {
@@ -137,34 +136,6 @@ export default function MapPage() {
                 {message}
               </p>
             </div>
-
-            {position && (
-              <div className="mt-3 grid grid-cols-3 gap-3 text-[10px] font-bold text-white/55">
-                <div className="rounded-xl bg-white/10 p-2">
-                  緯度
-                  <br />
-                  <span className="text-white">
-                    {position.latitude.toFixed(4)}
-                  </span>
-                </div>
-
-                <div className="rounded-xl bg-white/10 p-2">
-                  経度
-                  <br />
-                  <span className="text-white">
-                    {position.longitude.toFixed(4)}
-                  </span>
-                </div>
-
-                <div className="rounded-xl bg-white/10 p-2">
-                  精度
-                  <br />
-                  <span className="text-white">
-                    約{Math.round(position.accuracy)}m
-                  </span>
-                </div>
-              </div>
-            )}
           </div>
         </section>
 
