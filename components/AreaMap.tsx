@@ -17,7 +17,8 @@ function getMapStyleUrl() {
     return "https://demotiles.maplibre.org/style.json";
   }
 
-  return `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_KEY}`;
+  // よりリアルな地図：衛星写真 + 道路名/地名ラベル
+  return `https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`;
 }
 
 function cellIdToGridPoint(id: string) {
@@ -86,7 +87,7 @@ export default function AreaMap() {
       container: mapContainerRef.current,
       style: mapStyle,
       center: [initialLng, initialLat],
-      zoom: 16,
+      zoom: 17,
       pitch: 0,
       bearing: 0,
       attributionControl: false,
@@ -112,8 +113,8 @@ export default function AreaMap() {
         type: "fill",
         source: "revealed-cells",
         paint: {
-          "fill-color": "#0ea5e9",
-          "fill-opacity": 0.28,
+          "fill-color": "#00AEEF",
+          "fill-opacity": 0.32,
         },
       });
 
@@ -122,9 +123,9 @@ export default function AreaMap() {
         type: "line",
         source: "revealed-cells",
         paint: {
-          "line-color": "#0284c7",
-          "line-width": 1.4,
-          "line-opacity": 0.8,
+          "line-color": "#7dd3fc",
+          "line-width": 1.6,
+          "line-opacity": 0.9,
         },
       });
 
@@ -143,7 +144,7 @@ export default function AreaMap() {
         paint: {
           "circle-radius": 8,
           "circle-color": "#ffffff",
-          "circle-stroke-color": "#0ea5e9",
+          "circle-stroke-color": "#00AEEF",
           "circle-stroke-width": 3,
         },
       });
@@ -164,7 +165,7 @@ export default function AreaMap() {
     map.easeTo({
       center: [position.longitude, position.latitude],
       duration: 700,
-      zoom: Math.max(map.getZoom(), 16),
+      zoom: Math.max(map.getZoom(), 17),
     });
 
     const source = map.getSource("current-position") as
